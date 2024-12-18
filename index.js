@@ -7,8 +7,9 @@ import {
 
 import dotenv from "dotenv";
 dotenv.config();
+import axios from "axios";
 
-import fs from "fs";
+const apiKey = process.env.API;
 
 const rpc = "https://rpc.xion-testnet-1.burnt.com:443";
 
@@ -32,12 +33,14 @@ let earthcore =
   "xion1frafggn3p7vc7sn92ednn7uq26caqscdsnxhc4qxgkd2l6zdxlhqm93209";
 
 async function setPrice() {
+  let price = await getPrice();
+  console.log("price is", price);
   let priceMsg = {
     set_price: {
-      price: "3800000",
+      price: (price * 1000000).toFixed(0).toString(),
     },
   };
-
+  console.log("price is", priceMsg);
   const priceRes = await client.execute(
     account.address,
     earthcore,
@@ -49,4 +52,30 @@ async function setPrice() {
   console.log("price set sucessfull");
 }
 
-setPrice();
+async function getPrice() {
+  try {
+    const symbol = "XION";
+    const response = await axios.get(
+      "https://pro-api.coinmarketcap.com/v1/cryptocurrency/quotes/latest",
+      {
+        params: {
+          symbol: symbol,
+          convert: "USD",
+        },
+        headers: {
+          "X-CMC_PRO_API_KEY": apiKey,
+        },
+      }
+    );
+    const price = response.data.data[symbol].quote.USD.price;
+    console.log("price here", price);
+    return price; // Return the fetched price
+  } catch (error) {
+    console.error("Error fetching price:", error);
+    throw error; // Throw error to handle it in the calling function
+  }
+}
+
+setInterval(async () => {
+  await setPrice();
+}, 3000000);
